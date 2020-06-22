@@ -17,7 +17,7 @@ exports.getScreams = functions.https.onRequest((req, res) => {
     .get()
     .then(data => {
       let screams = []
-      data.forEach(document => {
+      data.forEach((document) => {
         screams.push(document.data())
       });
     return res.json(screams)
