@@ -17,6 +17,8 @@ const config = {
 const firebase = require('firebase')
 firebase.initializeApp(config)
 
+const db = admin.firestore()
+
 app.get('/screams', (req,res) => {
   admin
   .firestore()
@@ -45,8 +47,7 @@ app.post('/scream', (req, res) => {
    createdAt: new Date().toISOString()
  }
 
- admin.firestore()
- .collection('screams')
+ db.collection('screams')
  .add(newScream)
  .then(doc => {
    res.json({ message: `document ${doc.id} created successfully` })
@@ -66,16 +67,41 @@ app.post('/signup', (req, res) => {
     handle: req.body.handle
   }
 
-  firebase.auth().createUserWithEmailAndPassword(newUser.email, newUser.password)
-  .then(data => {
-    return res
-    .status(201)
-    .json({ message: `user ${data.user.uid} signed up successfully`})
-  })
-  .catch((err) => {
-    res.status(500).json({ error: error.code})
-    console.error(err)
-  })
+  let token, userId
+  db.doc(`/users/${newUser.handle}`).get()
+    .then(doc =>  {
+      if (doc.exists) {
+        return res.status(400).json({ handle: 'this handle already exists'})
+      }
+      else {
+        return firebase.auth().createUserWithEmailAndPassword(newUser.email, newUser.password)
+      }
+    })
+    .then(data => {
+      userId = data.user.uid
+      return data.user.getIdToken()
+    })
+    .then( (idToken) => {
+      token = idToken
+      const userCredentials = {
+        handle: newUser.handle,
+        email: newUser.email,
+        createdAt: new Date().toISOString(),
+        userId
+      }
+      return db.doc(`/users/${newUser.handle}`).set(userCredentials)
+    })
+    .then( () => {
+      return res.status(201).json({ token })
+    })
+    .catch((err) => {
+      console.error(err)
+      if (err.code === "auth/email-already-in-use") {
+        return res.status(400).json({ email: "Email already in use"})  
+      } else {
+        return res.status(500).json({ error: error.code})  
+      }
+    })
 })
 
 exports.api = functions.https.onRequest(app)
