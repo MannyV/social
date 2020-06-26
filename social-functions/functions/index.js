@@ -20,14 +20,13 @@ firebase.initializeApp(config)
 const db = admin.firestore()
 
 app.get('/screams', (req,res) => {
-  admin
-  .firestore()
+  db
   .collection('screams')
   .orderBy('createdAt', 'desc')
   .get()
   .then(data => {
     let screams = []
-    data.forEach((document) => {
+    data.forEach((doc) => {
       screams.push({
         screamId: doc.id, 
         body: doc.data().body, 
